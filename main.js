@@ -14,10 +14,16 @@ function ShaderProgram(name, program) {
 
     // Location of the attribute variable in the shader program.
     this.iAttribVertex = -1;
+    // Location of the attribute variable with the vertex normal.
+    this.iAttribNormal = -1;
     // Location of the uniform specifying a color for the primitive.
     this.iColor = -1;
     // Location of the uniform matrix representing the combined transformation.
     this.iModelViewProjectionMatrix = -1;
+    // Location of the uniform ModelView matrix (lighting is calculated in view coordinates).
+    this.iModelViewMatrix = -1;
+    // Location of the uniform with the light position in view coordinates.
+    this.iLightPosition = -1;
 
     this.Use = function() {
         gl.useProgram(this.prog);
@@ -49,9 +55,36 @@ function draw() {
        combined transformation matrix, and send that to the shader program. */
     let modelViewProjection = m4.multiply(projection, matAccum1 );
 
+    gl.uniformMatrix4fv(shProgram.iModelViewMatrix, false, matAccum1 );
     gl.uniformMatrix4fv(shProgram.iModelViewProjectionMatrix, false, modelViewProjection );
 
+    /* The point light moves along a circle around the surface. Its position is
+       multiplied by the same ModelView matrix to get it in view coordinates. */
+    let angle = performance.now() / 1000;
+    let lightPosition = [3 * Math.cos(angle), 3 * Math.sin(angle), 1];
+    gl.uniform3fv(shProgram.iLightPosition, m4.transformPoint(matAccum1, lightPosition) );
+
+    gl.uniform4fv(shProgram.iColor, [1, 0.8, 0.2, 1] );
+
     surface.Draw();
+}
+
+
+// Redraws every frame, so the light keeps moving
+function animate() {
+    draw();
+    requestAnimationFrame(animate);
+}
+
+
+// Rebuilds the surface with the granularity set by the sliders
+function UpdateSurface() {
+    let uSteps = +document.getElementById("uSteps").value;
+    let vSteps = +document.getElementById("vSteps").value;
+    document.getElementById("uStepsValue").textContent = uSteps;
+    document.getElementById("vStepsValue").textContent = vSteps;
+
+    surface.BufferData(CreateSurfaceData(uSteps, vSteps));
 }
 
 
@@ -63,11 +96,14 @@ function initGL() {
     shProgram.Use();
 
     shProgram.iAttribVertex              = gl.getAttribLocation(prog, "vertex");
+    shProgram.iAttribNormal              = gl.getAttribLocation(prog, "normal");
     shProgram.iModelViewProjectionMatrix = gl.getUniformLocation(prog, "ModelViewProjectionMatrix");
+    shProgram.iModelViewMatrix           = gl.getUniformLocation(prog, "ModelViewMatrix");
+    shProgram.iLightPosition             = gl.getUniformLocation(prog, "lightPosition");
     shProgram.iColor                     = gl.getUniformLocation(prog, "color");
 
     surface = new Model('Surface');
-    surface.BufferData(CreateSurfaceData());
+    UpdateSurface();
 
     gl.enable(gl.DEPTH_TEST);
 }
@@ -131,7 +167,7 @@ function init() {
         return;
     }
 
-    spaceball = new TrackballRotator(canvas, draw, 0);
+    spaceball = new TrackballRotator(canvas, null, 0);     // no callback: animate() redraws every frame
 
-    draw();
+    animate();
 }
