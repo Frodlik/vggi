@@ -16,14 +16,20 @@ function ShaderProgram(name, program) {
     this.iAttribVertex = -1;
     // Location of the attribute variable with the vertex normal.
     this.iAttribNormal = -1;
-    // Location of the uniform specifying a color for the primitive.
-    this.iColor = -1;
+    // Location of the attribute variable with the vertex tangent.
+    this.iAttribTangent = -1;
+    // Location of the texture coordinate attribute variable.
+    this.iAttribTexCoords = -1;
     // Location of the uniform matrix representing the combined transformation.
     this.iModelViewProjectionMatrix = -1;
     // Location of the uniform ModelView matrix (lighting is calculated in view coordinates).
     this.iModelViewMatrix = -1;
     // Location of the uniform with the light position in view coordinates.
     this.iLightPosition = -1;
+    // Locations of the samplers: TMU0 - diffuse, TMU1 - specular, TMU2 - normal texture
+    this.iTMU0 = -1;
+    this.iTMU1 = -1;
+    this.iTMU2 = -1;
 
     this.Use = function() {
         gl.useProgram(this.prog);
@@ -64,7 +70,9 @@ function draw() {
     let lightPosition = [3 * Math.cos(angle), 3 * Math.sin(angle), 1];
     gl.uniform3fv(shProgram.iLightPosition, m4.transformPoint(matAccum1, lightPosition) );
 
-    gl.uniform4fv(shProgram.iColor, [1, 0.8, 0.2, 1] );
+    gl.uniform1i(shProgram.iTMU0, 0);
+    gl.uniform1i(shProgram.iTMU1, 1);
+    gl.uniform1i(shProgram.iTMU2, 2);
 
     surface.Draw();
 }
@@ -97,13 +105,21 @@ function initGL() {
 
     shProgram.iAttribVertex              = gl.getAttribLocation(prog, "vertex");
     shProgram.iAttribNormal              = gl.getAttribLocation(prog, "normal");
+    shProgram.iAttribTangent             = gl.getAttribLocation(prog, "tangent");
+    shProgram.iAttribTexCoords           = gl.getAttribLocation(prog, "tex");
     shProgram.iModelViewProjectionMatrix = gl.getUniformLocation(prog, "ModelViewProjectionMatrix");
     shProgram.iModelViewMatrix           = gl.getUniformLocation(prog, "ModelViewMatrix");
     shProgram.iLightPosition             = gl.getUniformLocation(prog, "lightPosition");
-    shProgram.iColor                     = gl.getUniformLocation(prog, "color");
+    shProgram.iTMU0                      = gl.getUniformLocation(prog, "iTMU0");
+    shProgram.iTMU1                      = gl.getUniformLocation(prog, "iTMU1");
+    shProgram.iTMU2                      = gl.getUniformLocation(prog, "iTMU2");
 
     surface = new Model('Surface');
     UpdateSurface();
+
+    surface.idTextureDiffuse  = LoadTexture("./textures/diffuse.png");
+    surface.idTextureSpecular = LoadTexture("./textures/specular.png");
+    surface.idTextureNormal   = LoadTexture("./textures/normal.png");
 
     gl.enable(gl.DEPTH_TEST);
 }
